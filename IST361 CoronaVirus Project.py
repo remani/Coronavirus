@@ -12,7 +12,12 @@ downloadDirectory='/Users/r_ema/Downloads/' #This needs to be changed to the ind
 def search(event):
     county=countyName.get()
     st=state.get()
-    if county.strip() == '' and st.strip() == '':
+    if len(st)>2: #or st.isalpha() is False or county.isalpha() is False:
+        text1.set("**Error: Invalid Entry")
+        text2.set("**Error: Invalid Entry")
+        text3.set("**Error: Invalid Entry")
+        text4.set("**Error: Invalid Entry")
+    elif county.strip() == '' and st.strip() == '':
         text1.set("USA")
         text2.set("USA Coronavirus Graph")
         text3.set("USA Coronavirus Statistics")
@@ -64,7 +69,7 @@ stateEntry = tk.Entry(tab1, textvariable=state).grid(row=1, column=1)
 Label(tab1, text="County Name").grid(row=0)
 Label(tab1, text="State").grid(row=1)
 Label(tab1, text="*Must Be In 2 Letter Format (Ex. PA)*").grid(row=1, column=2)
-Label(tab1, text="*Can Be Left Blank For Statewide Statistics*").grid(row=0, column=2)
+Label(tab1, text="*County Name Can Be Left Blank For Statewide Statistics*").grid(row=0, column=2)
 Label(tab1, text="*Both Fields Can Be Left Blank For Nationwide Statistics*").grid(row=2, column=2)
 Label(tab1, text="Results For:").grid(row=3, column=0)
 searchbutton = tk.Button(tab1, text='Search')
@@ -91,4 +96,4 @@ Label(tab4, textvariable=text4).grid(row=0)
 
 tabControl.pack(expand=1, fill="both")  
 win.geometry("1000x600")
-win.mainloop()                                 
+win.mainloop()             
