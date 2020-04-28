@@ -12,23 +12,24 @@ downloadDirectory='/Users/r_ema/Downloads/' #This needs to be changed to the ind
 def search(event):
     county=countyName.get()
     st=state.get()
-    if len(st)>2: #or st.isalpha() is False or county.isalpha() is False:
-        text1.set("**Error: Invalid Entry")
-        text2.set("**Error: Invalid Entry")
-        text3.set("**Error: Invalid Entry")
-        text4.set("**Error: Invalid Entry")
-    elif county.strip() == '' and st.strip() == '':
+    if county == '' and st == '':
         text1.set("USA")
         text2.set("USA Coronavirus Graph")
         text3.set("USA Coronavirus Statistics")
         text4.set("USA Coronavirus Projections")
     
-    elif county.strip() == '':
+    elif county == '':
         text1.set(st)
         text2.set(st+ " Coronavirus Graph")
         text3.set(st+ " Coronavirus Statistics")
         text4.set(st+ " Coronavirus Projections")
     
+    elif len(st)>2 or st.strip().isalpha() is False or county.replace(" ", "").strip().isalpha() is False:
+        text1.set("**Error: Invalid Entry")
+        text2.set("**Error: Invalid Entry")
+        text3.set("**Error: Invalid Entry")
+        text4.set("**Error: Invalid Entry")
+
     else:
         text1.set(county+", "+ st)
         text2.set(county+ ", "+ st+ " Coronavirus Graph")
@@ -96,4 +97,4 @@ Label(tab4, textvariable=text4).grid(row=0)
 
 tabControl.pack(expand=1, fill="both")  
 win.geometry("1000x600")
-win.mainloop()             
+win.mainloop()                          
