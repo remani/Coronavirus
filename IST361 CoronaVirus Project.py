@@ -15,10 +15,13 @@ os.chdir(downloadDirectory)
 
 today = date.today()
 yesterday = today - datetime.timedelta(days=1)
-date = yesterday.strftime("%m/%d/%y").replace('/0', '/')
-if date.startswith("0"):
-    date=date[1:]
-print(date)
+daybefore = today - datetime.timedelta(days=2)
+daybeforedate = daybefore.strftime("%m/%d/%y").replace('/0', '/')
+yesterdaydate = yesterday.strftime("%m/%d/%y").replace('/0', '/')
+if yesterdaydate.startswith("0"):
+    yesterdaydate=yesterdaydate[1:]
+if daybeforedate.startswith("0"):
+    daybeforedate=daybeforedate[1:]
 
 def search(event):
     county=countyName.get().strip()
@@ -112,6 +115,14 @@ covidDeathData = pd.read_csv('covid_deaths_usafacts.csv')
    
 countyPopulationData = pd.read_csv('covid_county_population_usafacts.csv') 
 
+dates = list(covidCaseData.columns)
+
+if yesterdaydate in dates:
+    date = yesterdaydate
+else:
+    date = daybeforedate
+    
+
 tab1 = ttk.Frame(tabControl)
 tab2 = ttk.Frame(tabControl)
 tab3 = ttk.Frame(tabControl)
@@ -174,4 +185,4 @@ Label(tab4, textvariable=text4).grid(row=0)
 
 tabControl.pack(expand=1, fill="both")  
 win.geometry("1000x600")
-win.mainloop()        
+win.mainloop()           
