@@ -31,7 +31,13 @@ def search(event):
         cases=covidCaseData[date].sum()
         totalpopulation=countyPopulationData['population'].sum()
         percentinfected=str(cases/totalpopulation*100)
+        deaths=covidDeathData[date].sum()
+        percentdeaths=str(deaths/cases*100)
+        percentpopdeaths=str(deaths/totalpopulation*100)
+        percentDeaths.set(percentdeaths[:5]+'%')
+        percentPopDeaths.set(percentpopdeaths[:5]+'%')
         Cases.set(cases)
+        Deaths.set(deaths)
         percentInfected.set(percentinfected[:5]+'%')
         totalPopulation.set(totalpopulation)
     
@@ -40,6 +46,21 @@ def search(event):
         text2.set(st+ " Coronavirus Graph")
         text3.set(st+ " Coronavirus Statistics")
         text4.set(st+ " Coronavirus Projections")
+        stateDataFrame = covidCaseData.loc[covidCaseData['State'] == st]
+        deathDataFrame = covidDeathData.loc[covidDeathData['State'] == st]
+        populationDataFrame = countyPopulationData.loc[countyPopulationData['State'] == st]
+        totalpopulation=populationDataFrame['population'].sum()
+        cases=stateDataFrame[date].sum()
+        percentinfected=str(cases/totalpopulation*100)
+        deaths=deathDataFrame[date].sum()
+        percentdeaths=str(deaths/cases*100)
+        percentpopdeaths=str(deaths/totalpopulation*100)
+        percentDeaths.set(percentdeaths[:5]+'%')
+        percentPopDeaths.set(percentpopdeaths[:5]+'%')  
+        Cases.set(cases)
+        Deaths.set(deaths)
+        percentInfected.set(percentinfected[:5]+'%')
+        totalPopulation.set(totalpopulation)
     
     elif len(st)>2 or st.isalpha() is False or county.replace(" ", "").isalpha() is False:
         text1.set("**Error: Invalid Entry")
@@ -52,6 +73,22 @@ def search(event):
         text2.set(county+ ", "+ st+ " Coronavirus Graph")
         text3.set(county+ ", "+ st+ " Coronavirus Statistics")
         text4.set(county+ ", "+ st+ " Coronavirus Projections")
+        countyDataFrame = covidCaseData.loc[(covidCaseData['State'] == st) & (covidCaseData['County Name'] == county)]
+        populationDataFrame = countyPopulationData.loc[(countyPopulationData['State'] == st) & (countyPopulationData['County Name'] == county)]
+        deathDataFrame = covidDeathData.loc[(covidDeathData['State'] == st) & (covidDeathData['County Name'] == county)]
+        totalpopulation=populationDataFrame['population'].sum()
+        deaths=deathDataFrame[date].sum()
+        percentpopdeaths=str(deaths/totalpopulation*100)
+        cases=countyDataFrame[date].sum()
+        percentdeaths=str(deaths/cases*100)
+        percentinfected=str(cases/totalpopulation*100)
+        Cases.set(cases)
+        Deaths.set(deaths)
+        percentDeaths.set(percentdeaths[:5]+'%')
+        percentPopDeaths.set(percentpopdeaths[:5]+'%')
+        percentInfected.set(percentinfected[:5]+'%')
+        totalPopulation.set(totalpopulation)
+        
     
 def populateGraphTab():
     print()
@@ -111,14 +148,23 @@ tabControl.add(tab3, text='Statistics')
 text3=StringVar()
 percentInfected=StringVar()
 Cases=StringVar()
+Deaths=StringVar()
+percentDeaths=StringVar()
 totalPopulation=StringVar()
+percentPopDeaths=StringVar()
 Label(tab3, textvariable=text3).grid(row=0)
 Label(tab3, text="Cases:").grid(row=1, column=0)
 Label(tab3, textvariable=Cases).grid(row=1, column=1)
-Label(tab3, text="Percentage Infected:").grid(row=2, column=0)
-Label(tab3, textvariable=percentInfected).grid(row=2, column=1)
-Label(tab3, text="Total Population:").grid(row=3, column=0)
-Label(tab3, textvariable=totalPopulation).grid(row=3, column=1)
+Label(tab3, text="Total Population:").grid(row=2, column=0)
+Label(tab3, textvariable=totalPopulation).grid(row=2, column=1)
+Label(tab3, text="Percentage Infected:").grid(row=3, column=0)
+Label(tab3, textvariable=percentInfected).grid(row=3, column=1)
+Label(tab3, text="Deaths:").grid(row=4, column=0)
+Label(tab3, textvariable=Deaths).grid(row=4, column=1)
+Label(tab3, text="Percentages of Cases Resulting in Death:").grid(row=5, column=0)
+Label(tab3, textvariable=percentDeaths).grid(row=5, column=1)
+Label(tab3, text="Percentage of Population Dead:").grid(row=6, column=0)
+Label(tab3, textvariable=percentPopDeaths).grid(row=6, column=1)
 
 #Tab 4
 tabControl.add(tab4, text='Projections')
@@ -128,4 +174,4 @@ Label(tab4, textvariable=text4).grid(row=0)
 
 tabControl.pack(expand=1, fill="both")  
 win.geometry("1000x600")
-win.mainloop()  
+win.mainloop()        
