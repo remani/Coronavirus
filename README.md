@@ -1,4 +1,4 @@
-# Coronavirus
+# Coronavirus Analytics
 Coronavirus Analytics Application
 
 Contributors: Rahul Emani (rahulemani@gmail.com) & Kevin Cushing (kmkushing01@aol.com)
