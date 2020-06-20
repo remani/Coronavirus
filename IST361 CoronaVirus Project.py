@@ -10,6 +10,7 @@ import matplotlib as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import SimpleSEIR
 
 # Possible additions: autofill the word "county"
 
@@ -17,8 +18,9 @@ win = tk.Tk()
 win.title("Coronavirus Analytics")
 tabControl = ttk.Notebook(win)
 # This needs to be changed to the individual's download directory
-downloadDirectory = '/Users/kevincushing/Downloads/'
-os.chdir(downloadDirectory)
+#downloadDirectory = '/Users/kevincushing/Downloads/'
+#downloadDirectory = '/Users/kevincushing/desktop/codingprojects/coronavirus/'
+# os.chdir(downloadDirectory)
 
 today = date.today()
 yesterday = today - datetime.timedelta(days=1)
@@ -31,8 +33,12 @@ if daybeforedate.startswith("0"):
     daybeforedate = daybeforedate[1:]
 
 
-def populateGraphTab(value, dates, f):
+def populateGraphTab(value, dates, f, pop):
     for w in tab2.winfo_children():
+        w.destroy()
+    for w in tab4.winfo_children():
+        w.destroy()
+    for w in tab5.winfo_children():
         w.destroy()
     data = np.array([])
     days = np.array([])
@@ -45,22 +51,132 @@ def populateGraphTab(value, dates, f):
 
     f = Figure(figsize=(8, 6), dpi=100)
     p = f.add_subplot(111, yscale="linear",
-                      yticks=np.linspace(0, data[data.size - 1], 10))
+                      yticks=np.linspace(0, np.amax(data), 10))
     p.plot(days, data)
     p.set_xlabel("Days")
     p.set_ylabel("Cases")
-    p.set_title(value + " COVID-19 Confirmed Cases")
+    p.set_title(value + " COVID-19 Confirmed Cases Graph")
 
     c = FigureCanvasTkAgg(f, master=tab2)
     c.draw()
     c.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+    # assume that this amount of actual cases were recorded
+    # a study at the University of Montreal estimated a nationwide average of 12
+    # cases per confirmed case
+    percentOfCasesRecorded = 1/12
+    # outputs an estimated number of active cases (assuming recovery time is
+    # approximately 30 days - comes from analysis of reported cases vs reported
+    # recoveries)
+    percentConfirmedPositiveSick = 0.6
+    recoveryTimeSick = 32
+    recoveryTimeHealthy = 14
+    currentCases = np.array([])
+    for i in range(data.size):
+        if i >= recoveryTimeSick:
+            currentCases = np.append(currentCases,
+                                     (data[i] / percentOfCasesRecorded)
+                                     - ((((1 / percentOfCasesRecorded) - 1)
+                                         + (1 - percentConfirmedPositiveSick))
+                                         * data[i - recoveryTimeHealthy])
+                                     - (percentConfirmedPositiveSick
+                                        * data[i - recoveryTimeSick]))
+        elif i >= recoveryTimeHealthy:
+            currentCases = np.append(currentCases,
+                                     (data[i] / percentOfCasesRecorded)
+                                     - ((((1 / percentOfCasesRecorded) - 1)
+                                         + (1 - percentConfirmedPositiveSick))
+                                         * data[i - recoveryTimeHealthy]))
+        else:
+            currentCases = np.append(currentCases, data[i])
+
+    # draws current cases graph on tab4
+    f2 = Figure(figsize=(8, 6),  dpi=100)
+    a2 = f2.add_subplot(111, yscale="linear", yticks=np.linspace(
+        0, np.amax(currentCases), 10))
+    a2.plot(days, currentCases)
+    a2.set_xlabel("Days")
+    a2.set_ylabel("Estimated Current Cases")
+    a2.set_title(value + " COVID-19 Estimated Active Cases")
+    c2 = FigureCanvasTkAgg(f2, master=tab4)
+    c2.draw()
+    c2.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+    # b(t) is the chance of contracting the disease multiplied by the number of
+    # people an average individual comes in close contact with
+    # This model uses a piecewise function to model societal reopening phase
+
+    def b(t):
+        # a study in China found that between 1-5% of people in close contact with
+        # carriers of the disease cantracted it - wearing masks and taking other
+        # preventative measures can further reduce the transmission rate so assume
+        # continuing to wear masks in all public settings reduces the transmission
+        # rate to 0.5%
+        transmissionRate = 0.005
+        dailyInteractionsRed = 10
+        dailyInteractionsYellow = 20
+        dailyInteractionsOpen = 30
+        tYellow = 0
+        tOpen = 0
+        if t >= tOpen:
+            return dailyInteractionsOpen * transmissionRate
+        elif t >= tYellow:
+            return dailyInteractionsYellow * transmissionRate
+        else:
+            return dailyInteractionsRed * transmissionRate
+
+    i0 = currentCases[currentCases.size - 1]
+    r0 = data[data.size - 1] / percentOfCasesRecorded - \
+        currentCases[currentCases.size - 1]
+    mu = 0.016 / 365
+    nu = 0.0086 / 365
+    latentTime = 5
+    infTime = 12
+    e0 = 0
+    for i in range(latentTime):
+        e0 = e0 + currentCases[currentCases.size -
+                               1 - i] * b(-i) * (pop - i0 - r0) / pop
+    s0 = pop - e0 - i0 - r0
+
+    m = SimpleSEIR.SEIRModel(s0, e0, i0, r0, mu, nu,
+                             latentTime, infTime, b)
+    projDays = 200
+    (projS, projE, projI, projR) = m.projectSEIR(projDays)
+
+    def updateOpenTime(str):
+        def bTransform(t):
+            return b(t - openScale.get())
+        m = SimpleSEIR.SEIRModel(
+            s0, e0, i0, r0, mu, nu, latentTime, infTime, bTransform)
+        (projS, projE, projI, projR) = m.projectSEIR(projDays)
+        projectedCases = np.append(currentCases, projI[1:])
+        a3.cla()
+        a3.plot(range(projDays + days.size), projectedCases)
+        c3.draw()
+
+    openScale = Scale(master=tab5, to=200, orient=tk.HORIZONTAL,
+                      label="Days until reopening", length=150,
+                      command=updateOpenTime)
+    openScale.pack()
+    f3 = Figure(figsize=(8, 6), dpi=100)
+    projectedCases = np.append(currentCases, projI[1:])
+    a3 = f3.add_subplot(111, yscale="linear",
+                        yticks=np.linspace(0, np.amax(projectedCases), 10))
+    a3.plot(range(projDays + days.size), projectedCases)
+    a3.set_xlabel("Days")
+    a3.set_ylabel("Projected Cases")
+    a3.set_title(value + " COVID-19 Projected Cases")
+    c3 = FigureCanvasTkAgg(f3, master=tab5)
+    c3.draw()
+    c3.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.X, expand=1)
 
 
 def textAssigner(value):
     text1.set(value)
     text2.set(value + " COVID-19 Confirmed Cases Graph")
     text3.set(value + " COVID-19 Statistics")
-    text4.set(value + " COVID-19 Projections")
+    text4.set(value + " COVID-19 Estimated Active Cases")
+    text5.set(value + " COVID-19 Projections")
 
 
 def search(event):
@@ -85,7 +201,7 @@ def search(event):
 
         def dataAtIndex(i):
             return covidCaseData[i].sum()
-        populateGraphTab("USA", dates, dataAtIndex)
+        populateGraphTab("USA", dates, dataAtIndex, totalpopulation)
 
     elif county == '':
         textAssigner(st)
@@ -109,7 +225,7 @@ def search(event):
 
         def dataAtIndex(i):
             return covidCaseData.loc[covidCaseData['State'] == st][i].sum()
-        populateGraphTab(st, dates, dataAtIndex)
+        populateGraphTab(st, dates, dataAtIndex, totalpopulation)
 
     elif len(st) > 2 or st.isalpha() is False or county.replace(" ", "").isalpha() is False:
         textAssigner("**Error: Invalid Entry")
@@ -140,7 +256,8 @@ def search(event):
         def dataAtIndex(i):
             return covidCaseData.loc[(covidCaseData['State'] == st) & (
                 covidCaseData['County Name'] == county)][i].sum()
-        populateGraphTab(county + ", " + st, dates, dataAtIndex)
+        populateGraphTab(county + ", " + st, dates,
+                         dataAtIndex, totalpopulation)
 
 
 def populateStatisticsTab():
@@ -151,21 +268,24 @@ def populateProjectionsTab():
     print()
 
 
-url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_confirmed_usafacts.csv"
-urllib.request.urlretrieve(url, downloadDirectory +
-                           'covid_confirmed_usafacts.csv')
-url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_deaths_usafacts.csv"
-urllib.request.urlretrieve(url, downloadDirectory +
-                           'covid_deaths_usafacts.csv')
-url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_county_population_usafacts.csv"
-urllib.request.urlretrieve(url, downloadDirectory +
-                           'covid_county_population_usafacts.csv')
+#url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_confirmed_usafacts.csv"
+# urllib.request.urlretrieve(url, downloadDirectory +
+#                           'covid_confirmed_usafacts.csv')
+#url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_deaths_usafacts.csv"
+# urllib.request.urlretrieve(url, downloadDirectory +
+#                           'covid_deaths_usafacts.csv')
+#url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_county_population_usafacts.csv"
+# urllib.request.urlretrieve(url, downloadDirectory +
+#                           'covid_county_population_usafacts.csv')
 
-covidCaseData = pd.read_csv('covid_confirmed_usafacts.csv')
+covidCaseData = pd.read_csv(
+    "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_confirmed_usafacts.csv")
 
-covidDeathData = pd.read_csv('covid_deaths_usafacts.csv')
+covidDeathData = pd.read_csv(
+    "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_deaths_usafacts.csv")
 
-countyPopulationData = pd.read_csv('covid_county_population_usafacts.csv')
+countyPopulationData = pd.read_csv(
+    "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_county_population_usafacts.csv")
 
 dates = list(covidCaseData.columns)
 
@@ -179,6 +299,7 @@ tab1 = ttk.Frame(tabControl)
 tab2 = ttk.Frame(tabControl)
 tab3 = ttk.Frame(tabControl)
 tab4 = ttk.Frame(tabControl)
+tab5 = ttk.Frame(tabControl)
 
 # Tab 1 - Search tab
 tabControl.add(tab1, text='Search')
@@ -229,11 +350,15 @@ Label(tab3, textvariable=percentDeaths).grid(row=5, column=1)
 Label(tab3, text="Percentage of Population Dead:").grid(row=6, column=0)
 Label(tab3, textvariable=percentPopDeaths).grid(row=6, column=1)
 
-# Tab 4 - projected graph
-tabControl.add(tab4, text='Projections')
-
+# Tab 4 - estimated current cases
+tabControl.add(tab4, text='Estimations')
 text4 = StringVar()
-Label(tab4, textvariable=text4).grid(row=0)
+
+# Tab 5 - projected graph
+tabControl.add(tab5, text='Projections')
+
+text5 = StringVar()
+# Label(tab5, textvariable=text5).grid(row=0)
 
 tabControl.pack(expand=1, fill="both")
 win.geometry("1000x600")
