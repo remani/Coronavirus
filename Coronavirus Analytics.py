@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import *
 import datetime
-from datetime import date
+from datetime import date, timedelta
 import pandas as pd
 import matplotlib as plt
 import numpy as np
@@ -34,6 +34,7 @@ if daybeforedate.startswith("0"):
 
 
 def populateGraphTab(value, dates, f, pop):
+    # Clear previously displayed figures
     for w in tab2.winfo_children():
         w.destroy()
     for w in tab4.winfo_children():
@@ -42,18 +43,24 @@ def populateGraphTab(value, dates, f, pop):
         w.destroy()
     data = np.array([])
     days = np.array([])
+    day0 = datetime.date(year=2020, month=1, day=22)
+
+    # populate arrays of days and data
     count = 0
     for i in dates:
+        # ignores the first 4 columns from the csv files as they do not contain
+        # data
         if count >= 4:
             data = np.append(data, f(i))
             days = np.append(days, (count - 4))
         count = count + 1
 
+    dates = [day0 + timedelta(days=i) for i in days]
     f = Figure(figsize=(8, 6), dpi=100)
     p = f.add_subplot(111, yscale="linear",
                       yticks=np.linspace(0, np.amax(data), 10))
-    p.plot(days, data)
-    p.set_xlabel("Days")
+    p.plot(dates, data)
+    p.set_xlabel("Time (Months)")
     p.set_ylabel("Cases")
     p.set_title(value + " COVID-19 Confirmed Cases Graph")
 
@@ -89,13 +96,12 @@ def populateGraphTab(value, dates, f, pop):
                                          * data[i - recoveryTimeHealthy]))
         else:
             currentCases = np.append(currentCases, data[i])
-
     # draws current cases graph on tab4
     f2 = Figure(figsize=(8, 6),  dpi=100)
     a2 = f2.add_subplot(111, yscale="linear", yticks=np.linspace(
         0, np.amax(currentCases), 10))
-    a2.plot(days, currentCases)
-    a2.set_xlabel("Days")
+    a2.plot(dates, currentCases)
+    a2.set_xlabel("Time (Months)")
     a2.set_ylabel("Estimated Current Cases")
     a2.set_title(value + " COVID-19 Estimated Active Cases")
     c2 = FigureCanvasTkAgg(f2, master=tab4)
@@ -140,30 +146,61 @@ def populateGraphTab(value, dates, f, pop):
 
     m = SimpleSEIR.SEIRModel(s0, e0, i0, r0, mu, nu,
                              latentTime, infTime, b)
-    projDays = 200
+    projDays = 500
     (projS, projE, projI, projR) = m.projectSEIR(projDays)
 
-    def updateOpenTime(str):
+    def updatedM():
         def bTransform(t):
             return b(t - openScale.get())
-        m = SimpleSEIR.SEIRModel(
+        return SimpleSEIR.SEIRModel(
             s0, e0, i0, r0, mu, nu, latentTime, infTime, bTransform)
+
+    def updateOpenTime(str):
+        projDays = projScale.get()
+        m = updatedM()
         (projS, projE, projI, projR) = m.projectSEIR(projDays)
         projectedCases = np.append(currentCases, projI[1:])
         a3.cla()
-        a3.plot(range(projDays + days.size), projectedCases)
+        dates = [day0 + timedelta(days=i) for i in range(projDays + days.size)]
+        a3.plot(dates, projectedCases)
+        a3.set_xlabel("Time (Months)")
+        a3.set_ylabel("Projected Cases")
+        a3.set_title(value + " COVID-19 Projected Cases")
         c3.draw()
 
-    openScale = Scale(master=tab5, to=200, orient=tk.HORIZONTAL,
+    def updateProjDays(str):
+        projDays = projScale.get()
+        m = updatedM()
+        (projS, projE, projI, projR) = m.projectSEIR(projDays)
+        projectedCases = np.append(currentCases, projI[1:])
+        a3.cla()
+        dates = [day0 + timedelta(days=i) for i in range(projDays + days.size)]
+        a3.plot(dates, projectedCases)
+        a3.set_xlabel("Time (Months)")
+        a3.set_ylabel("Projected Cases")
+        a3.set_title(value + " COVID-19 Projected Cases")
+        c3.draw()
+
+    lF = tk.LabelFrame(master=tab5, bd=0)
+    openScale = Scale(master=lF, to=200, orient=tk.HORIZONTAL,
                       label="Days until reopening", length=150,
-                      command=updateOpenTime)
-    openScale.pack()
+                      command=updateOpenTime, tickinterval=200)
+    openScale.pack(side=tk.LEFT)
+
+    projScale = Scale(master=lF, to=1000, orient=tk.HORIZONTAL,
+                      label="Days Projected", length=150, tickinterval=1000,
+                      command=updateProjDays)
+    projScale.pack(side=tk.LEFT)
+    projScale.set(projDays)
+    lF.pack()
+
     f3 = Figure(figsize=(8, 6), dpi=100)
     projectedCases = np.append(currentCases, projI[1:])
     a3 = f3.add_subplot(111, yscale="linear",
                         yticks=np.linspace(0, np.amax(projectedCases), 10))
-    a3.plot(range(projDays + days.size), projectedCases)
-    a3.set_xlabel("Days")
+    dates = [day0 + timedelta(days=i) for i in range(projDays + days.size)]
+    a3.plot(dates, projectedCases)
+    a3.set_xlabel("Time (Months)")
     a3.set_ylabel("Projected Cases")
     a3.set_title(value + " COVID-19 Projected Cases")
     c3 = FigureCanvasTkAgg(f3, master=tab5)
@@ -308,8 +345,8 @@ countyName = StringVar()
 state = StringVar()
 text1 = StringVar()
 Label(tab1, textvariable=text1).grid(row=3, column=1)
-countyEntry = tk.Entry(tab1, textvariable=countyName).grid(row=0, column=1)
-stateEntry = tk.Entry(tab1, textvariable=state).grid(row=1, column=1)
+tk.Entry(tab1, textvariable=countyName).grid(row=0, column=1)
+tk.Entry(tab1, textvariable=state).grid(row=1, column=1)
 Label(tab1, text="County Name").grid(row=0)
 Label(tab1, text="State").grid(row=1)
 Label(tab1, text="*Must Be In 2 Letter Format (Ex. PA)*").grid(row=1, column=2)
