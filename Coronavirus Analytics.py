@@ -113,29 +113,31 @@ def populateGraphTab(value, dates, f, pop):
     # This model uses a piecewise function to model societal reopening phase
 
     def b(t):
-        # a study in China found that between 1-5% of people in close contact with
-        # carriers of the disease cantracted it - wearing masks and taking other
-        # preventative measures can further reduce the transmission rate so assume
-        # continuing to wear masks in all public settings reduces the transmission
-        # rate to 0.5%
-        transmissionRate = 0.005
-        dailyInteractionsRed = 10
-        dailyInteractionsYellow = 20
-        dailyInteractionsOpen = 30
-        tYellow = 0
+        # a study in China found that between 1-5% of people in close contact
+        # with carriers of the disease cantracted it - assume 1% since people
+        # will be encouraged to wear masks to reduce the spread
+        transmissionRate = 0.01
+        # assuming people are generally only in close contact with immediate
+        # family and 2 close friends - average family size in the US is 3.14 according to
+        # statista.com
+        dailyCloseContactClosed = 4.14
+        # assuming people are generally only in close contact with immediate
+        # family and a few close friends (for the sake of simplicity let's say
+        # 10)
+        dailyCloseContactOpen = 12.14
         tOpen = 0
         if t >= tOpen:
-            return dailyInteractionsOpen * transmissionRate
-        elif t >= tYellow:
-            return dailyInteractionsYellow * transmissionRate
+            return dailyCloseContactOpen * transmissionRate
         else:
-            return dailyInteractionsRed * transmissionRate
+            return dailyCloseContactClosed * transmissionRate
 
     i0 = currentCases[currentCases.size - 1]
     r0 = data[data.size - 1] / percentOfCasesRecorded - \
         currentCases[currentCases.size - 1]
+    # calculated based on annual birth and death rates
     mu = 0.016 / 365
     nu = 0.0086 / 365
+    # based on data from the cdc
     latentTime = 5
     infTime = 12
     e0 = 0
